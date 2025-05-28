@@ -5,6 +5,7 @@ from enum import Enum
 from collections import defaultdict, deque
 from heapq import heappush, heappop
 import math
+import pygame.mixer
 
 from constants import *
 
@@ -334,7 +335,7 @@ class Enemy:
             self.patrol_direction = random.choice([(0, 1), (0, -1), (1, 0), (-1, 0)])
             self.patrol_steps = 0
 
-    def update_attack_timer(self, player_x, player_y, player, dungeon_map, projectiles_list): # When did enemies will attack player
+    def update_attack_timer(self, player_x, player_y, player, dungeon_map, projectiles_list, sounds=None): # When did enemies will attack player
         if not self.can_attack_player(player_x, player_y):
             self.attack_timer = 0
             return False
@@ -345,6 +346,8 @@ class Enemy:
                 if self.has_line_of_sight(player_x, player_y, dungeon_map):
                     projectile = self.create_projectile_to_player(player_x, player_y)
                     projectiles_list.append(projectile)
+                    if sounds and "enemy_attack" in sounds:
+                        sounds["enemy_attack"].play()
                     self.attack_timer = 60  # 1 second cooldown
             else:
                 # Melee attack - direct damage if adjacent
