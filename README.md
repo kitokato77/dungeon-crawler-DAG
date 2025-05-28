@@ -1,8 +1,3 @@
-Sure! Here's a professional and well-structured `README.md` file for your Dungeon Crawler project, written in English. It's ready to be used on GitHub and includes all key sections: description, features, installation, usage, controls, dependencies, and credits.
-
----
-
-````markdown
 # 🧙‍♂️ Dungeon Crawler - DAG Level System with A* Pathfinding
 
 Welcome to **Dungeon Crawler**, a 2D pixel-art game built with **Python and Pygame**, featuring procedurally generated dungeons, enemy AI using **A\*** pathfinding, and a **DAG (Directed Acyclic Graph)** level system for non-linear progression.
