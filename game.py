@@ -24,6 +24,18 @@ def resource_path(relative_path): # For path into asset file
 
 class DungeonCrawlerGame:
     def __init__(self):
+        pygame.joystick.init()
+        self.joystick = None
+
+        # Connect to first joystick found
+        if pygame.joystick.get_count() > 0:
+            self.joystick = pygame.joystick.Joystick(0)
+            self.joystick.init()
+            print(f"Using joystick: {self.joystick.get_name()}")
+
+        self.joystick_move_cooldown = 200  # in milliseconds
+        self.last_joystick_move_time = 0
+
         self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
         pygame.display.set_caption("Dungeon Crawler - DAG Level System")
         self.clock = pygame.time.Clock()
@@ -531,6 +543,20 @@ class DungeonCrawlerGame:
     
     def handle_events(self): # Handle event happen in the game
         for event in pygame.event.get():
+            if event.type == pygame.JOYAXISMOTION:
+                if self.game_state == GameState.DUNGEON:
+                    self.handle_joystick_motion()
+
+            if event.type == pygame.JOYBUTTONDOWN:
+                if self.game_state == GameState.MAP_VIEW:
+                    self.handle_map_input_from_joystick(event.button)
+                elif self.game_state == GameState.DUNGEON:
+                    self.handle_joystick_button(event.button)
+
+            if event.type == pygame.JOYHATMOTION:
+                if self.game_state == GameState.DUNGEON:
+                    self.handle_dpad_motion(event.value)
+
             if event.type == pygame.QUIT:
                 return False
             
@@ -1216,6 +1242,97 @@ class DungeonCrawlerGame:
     
     def calculate_manhattan_distance(self, x1, y1, x2, y2): # Counting manhattan distance
         return abs(x1 - x2) + abs(y1 - y2)
+    
+    def handle_joystick_motion(self):
+        if not self.joystick:
+            return
+
+        current_time = pygame.time.get_ticks()
+        if current_time - self.last_joystick_move_time < self.joystick_move_cooldown:
+            return  # still cooling down
+
+        threshold = 0.5
+        axis_x = self.joystick.get_axis(0)
+        axis_y = self.joystick.get_axis(1)
+
+        dx, dy = 0, 0
+        if axis_x < -threshold:
+            dx = -1
+        elif axis_x > threshold:
+            dx = 1
+        if axis_y < -threshold:
+            dy = -1
+        elif axis_y > threshold:
+            dy = 1
+
+        if dx != 0 or dy != 0:
+            moved = self.player.move(dx, dy, self.dungeon_map, self.enemies)
+            if moved:
+                self.last_direction = (dx, dy)
+                self.last_joystick_move_time = current_time  # reset timer
+
+    def handle_joystick_button(self, button):
+        if button == 0:  # X / A (shoot)
+            self.shoot_projectile()
+        elif button == 1:  # Circle / B (return to map)
+            if self.game_state == GameState.DUNGEON:
+                pygame.mixer.music.stop()
+                pygame.mixer.music.load(self.sounds["map_music"])
+                pygame.mixer.music.play(-1, start=self.map_music_pos / 1000.0)
+                self.game_state = GameState.MAP_VIEW
+
+    def handle_map_input_from_joystick(self, button):
+        if button == 1:  # B or Circle to regenerate map
+            self.setup_dag()
+
+    def handle_dpad_motion(self, hat_value):
+        dx, dy = hat_value  # tuple: (x, y)
+        if dx == 0 and dy == 0:
+            return  # no direction pressed
+
+        current_time = pygame.time.get_ticks()
+        if current_time - self.last_joystick_move_time < self.joystick_move_cooldown:
+            return  # cooldown delay
+
+        moved = self.player.move(dx, -dy, self.dungeon_map, self.enemies)
+        if moved:
+            self.last_direction = (dx, -dy)
+            self.last_joystick_move_time = current_time
+
+    def handle_joystick_button(self, button):
+        # D-Pad Mapping for PS5 DualSense
+        if button == 11:  # D-Pad Up
+            moved = self.player.move(0, -1, self.dungeon_map, self.enemies)
+            if moved:
+                self.last_direction = (0, -1)
+                self.last_joystick_move_time = pygame.time.get_ticks()
+
+        elif button == 12:  # D-Pad Down
+            moved = self.player.move(0, 1, self.dungeon_map, self.enemies)
+            if moved:
+                self.last_direction = (0, 1)
+                self.last_joystick_move_time = pygame.time.get_ticks()
+
+        elif button == 13:  # D-Pad Left
+            moved = self.player.move(-1, 0, self.dungeon_map, self.enemies)
+            if moved:
+                self.last_direction = (-1, 0)
+                self.last_joystick_move_time = pygame.time.get_ticks()
+
+        elif button == 14:  # D-Pad Right
+            moved = self.player.move(1, 0, self.dungeon_map, self.enemies)
+            if moved:
+                self.last_direction = (1, 0)
+                self.last_joystick_move_time = pygame.time.get_ticks()
+
+        elif button == 0:  # X / A (shoot)
+            self.shoot_projectile()
+
+        elif button == 1:  # Circle / B (return to map)
+            pygame.mixer.music.stop()
+            pygame.mixer.music.load(self.sounds["map_music"])
+            pygame.mixer.music.play(-1, start=self.map_music_pos / 1000.0)
+            self.game_state = GameState.MAP_VIEW
 
     def run(self):
         running = True
