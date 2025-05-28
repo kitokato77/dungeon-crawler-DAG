@@ -29,7 +29,7 @@ In this game, you take on the role of a brave adventurer, clearing out a series 
    ```bash
    git clone https://github.com/kitokato77/dungeon-crawler-DAG.git
    cd dungeon-crawler
-````
+   ```
 
 2. Install dependencies (requires Python ≥ 3.8):
 
