@@ -72,6 +72,14 @@ Make sure all files are in `.mp3` or `.wav` format (no `.mp4a`).
 | Interact (Map) | Click on available dungeons |
 | Regenerate map | R                           |
 
+### 🕹️ Gamepad Support
+
+| Action     | PS5 / Xbox Button |
+|------------|-------------------|
+| Move       | Left Stick / D-Pad |
+| Shoot      | X / A             |
+| Back       | O / B             |
+
 ---
 
 ## 🧠 Algorithms Used
