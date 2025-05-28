@@ -5,6 +5,8 @@ from enum import Enum
 from collections import defaultdict, deque
 from heapq import heappush, heappop
 import math
+import pygame.mixer
+import os
 
 from game import DungeonCrawlerGame
 
