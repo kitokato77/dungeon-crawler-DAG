@@ -5,12 +5,22 @@ from enum import Enum
 from collections import defaultdict, deque
 from heapq import heappush, heappop
 import math
+import pygame.mixer
+import os
 
 from constants import *
 from entities import Player, Enemy, Projectile
 from dungeon import DungeonGenerator
 from dag_manager import DAGManager
 from dungeon import DungeonNode
+
+def resource_path(relative_path): # For path into asset file
+    try:
+        base_path = sys._MEIPASS
+    except AttributeError:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
 
 class DungeonCrawlerGame:
     def __init__(self):
@@ -19,6 +29,7 @@ class DungeonCrawlerGame:
         self.clock = pygame.time.Clock()
         self.font = pygame.font.Font(None, 24)
         self.title_font = pygame.font.Font(None, 48)
+        self.credit_font = pygame.font.Font(None, 24)
         
         self.game_state = GameState.MAP_VIEW
         self.dag_manager = DAGManager()
@@ -31,9 +42,25 @@ class DungeonCrawlerGame:
         self.projectiles = []
         self.enemy_projectiles = []
         self.last_direction = (0, -1)
-        
+
+        pygame.mixer.init()
+
+        self.sounds = {
+            "map_music": resource_path("assets/map.mp3"),
+            "battle_music": resource_path("assets/battle.mp3"),
+            "button_click": pygame.mixer.Sound(resource_path("assets/buttonclick.wav")),
+            "enemy_attack": pygame.mixer.Sound(resource_path("assets/enemiesatt.wav")),
+            "player_attack": pygame.mixer.Sound(resource_path("assets/playeratt.wav")),
+            "collect_treasure": pygame.mixer.Sound(resource_path("assets/collecttre.wav")),
+        }
+
+        self.map_music_pos = 0
+
         self.setup_dag()
-        
+
+        pygame.mixer.music.load(self.sounds["map_music"])
+        pygame.mixer.music.play(-1)  # Loop forever
+
     def draw_gradient_background(self, surface, color1, color2, vertical=True): # Draw background gradient
         if vertical:
             for y in range(SCREEN_HEIGHT):
@@ -269,10 +296,10 @@ class DungeonCrawlerGame:
         
         # Calculate positions
         max_depth = max(depths.values()) if depths else 0
-        vertical_spacing = (SCREEN_HEIGHT - 200) / (max_depth + 1)  # Leave margins
+        vertical_spacing = (SCREEN_HEIGHT - 250) / (max_depth + 1)  # Leave margins
         
         for depth, nodes in depth_groups.items():
-            y = 100 + depth * vertical_spacing
+            y = 200 + depth * vertical_spacing
             
             if len(nodes) == 1:
                 # Single node - center horizontally
@@ -339,6 +366,16 @@ class DungeonCrawlerGame:
         node = self.dag_manager.nodes[node_id]
         if not node.unlocked:
             return
+        
+        # Pause map music and remember position
+        self.map_music_pos = pygame.mixer.music.get_pos()
+        pygame.mixer.music.stop()
+
+        # Play battle music
+        pygame.mixer.music.load(self.sounds["battle_music"])
+        pygame.mixer.music.set_volume(0.7)
+        pygame.mixer.music.play(-1)
+
             
         self.current_node = node
         self.game_state = GameState.DUNGEON
@@ -504,15 +541,19 @@ class DungeonCrawlerGame:
                     self.handle_dungeon_input(event.key)
                 elif self.game_state == GameState.VICTORY:
                     if event.key == pygame.K_SPACE:
+                        self.sounds["button_click"].play()
                         self.game_state = GameState.MAP_VIEW
                 elif self.game_state == GameState.GAME_OVER:
                     if event.key == pygame.K_SPACE:
+                        self.sounds["button_click"].play()
                         self.restart_game()
                     elif event.key == pygame.K_ESCAPE:
+                        self.sounds["button_click"].play()
                         pygame.quit()
                         sys.exit()
             
             if event.type == pygame.MOUSEBUTTONDOWN and self.game_state == GameState.MAP_VIEW:
+                self.sounds["button_click"].play()
                 self.handle_map_click(event.pos)
         
         return True
@@ -538,6 +579,13 @@ class DungeonCrawlerGame:
     
     def handle_dungeon_input(self, key):
         if key == pygame.K_ESCAPE:
+            pygame.mixer.music.stop()  # Stop dungeon (battle) music
+
+            # Resume map music from where it left off
+            pygame.mixer.music.load(self.sounds["map_music"])
+            pygame.mixer.music.set_volume(1.0)
+            pygame.mixer.music.play(-1, start=self.map_music_pos / 1000.0)
+
             self.game_state = GameState.MAP_VIEW
         elif key == pygame.K_UP:
             self.player.move(0, -1, self.dungeon_map, self.enemies)
@@ -561,6 +609,7 @@ class DungeonCrawlerGame:
     
     def shoot_projectile(self): # Shooting goes brrrr
         keys = pygame.key.get_pressed()
+        self.sounds["player_attack"].play()
         
         # Determine direction based on current key press
         direction_x, direction_y = 0, 0
@@ -663,13 +712,12 @@ class DungeonCrawlerGame:
                 
                 # Update attack timer and check for damage
                 player_died = enemy.update_attack_timer(self.player.x, self.player.y, self.player, 
-                                                    self.dungeon_map, self.enemy_projectiles)
+                                                        self.dungeon_map, self.enemy_projectiles, self.sounds)
                 if player_died:
                     self.game_state = GameState.GAME_OVER
                     return
 
         self.update_projectiles()
-        # Tambahkan setelah self.update_projectiles():
         self.update_enemy_projectiles()
         
         # Check interactions
@@ -681,6 +729,7 @@ class DungeonCrawlerGame:
             self.current_node.treasures_collected += 1
             self.player.heal(20)
             self.player.gain_experience(10)
+            self.sounds["collect_treasure"].play()
         
         # Check completion conditions
         alive_enemies = sum(1 for e in self.enemies if e.alive)
@@ -751,6 +800,10 @@ class DungeonCrawlerGame:
     def complete_dungeon(self):
         self.current_node.completed = True
         self.dag_manager.update_unlocked_nodes()
+
+        pygame.mixer.music.stop()
+        pygame.mixer.music.load(self.sounds["map_music"])
+        pygame.mixer.music.play(-1, start=self.map_music_pos / 1000.0)
         
         # Check if all nodes completed
         all_completed = all(node.completed for node in self.dag_manager.nodes.values())
@@ -818,6 +871,11 @@ class DungeonCrawlerGame:
         subtitle_surface = self.font.render(subtitle_text, True, PURPLE)
         subtitle_rect = subtitle_surface.get_rect(center=(SCREEN_WIDTH // 2, 80))
         self.screen.blit(subtitle_surface, subtitle_rect)
+
+        # Credit
+        credit_text = self.credit_font.render("credit : kitokato77", True, (255, 255, 255))
+        credit_rect = credit_text.get_rect(topright=(self.screen.get_width() -20, 15))
+        self.screen.blit(credit_text, credit_rect)
         
         # Draw connections with better styling
         for from_id, to_ids in self.dag_manager.adjacency_list.items():
