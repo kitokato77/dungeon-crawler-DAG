@@ -5,10 +5,11 @@ from enum import Enum
 from collections import defaultdict, deque
 from heapq import heappush, heappop
 import math
+import pygame.mixer
 
 # Constants
-SCREEN_WIDTH = 1000
-SCREEN_HEIGHT = 700
+SCREEN_WIDTH = 1280
+SCREEN_HEIGHT = 768
 FPS = 60
 
 # AI Constants
