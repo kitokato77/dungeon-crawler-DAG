@@ -113,9 +113,3 @@ This project is open source and free to use under the [MIT License](LICENSE).
 ---
 
 Enjoy the adventure, and feel free to contribute or fork this project for your own dungeon game ideas!
-
-```
-
----
-
-```
