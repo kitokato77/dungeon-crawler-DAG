@@ -25,6 +25,8 @@ In this game, you take on the role of a brave adventurer, clearing out a series 
 
 ## 🚀 Installation
 
+*Before you start your own build, there are files that have been compiled and can be played in Release.
+
 1. Clone this repository:
    ```bash
    git clone https://github.com/kitokato77/dungeon-crawler-DAG.git
